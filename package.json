@@ -1,0 +1,41 @@
+{
+  "private": false,
+  "displayName": "broadlink api",
+  "name": "broadlink-aircon-api",
+  "version": "1.0.0",
+  "description": "api for broadlink air conditioner",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/makleso6/broadlink-aircon-api.git"
+  },
+  "bugs": {
+    "url": "https://github.com/makleso6/broadlink-aircon-api/issues"
+  },
+  "engines": {
+    "node": ">=10.17.0"
+  },
+  "main": "dist/index.js",
+  "scripts": {
+    "lint": "eslint src/**.ts",
+    "watch": "npm run build && npm link && nodemon",
+    "build": "rimraf ./dist && tsc",
+    "prepublishOnly": "npm run lint && npm run build"
+  },
+  "keywords": [
+    "broadlink"
+  ],
+  "dependencies": {
+    "dgram-as-promised": "^3.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^14.10.3",
+    "@typescript-eslint/eslint-plugin": "^4.1.1",
+    "@typescript-eslint/parser": "^4.1.1",
+    "eslint": "^7.9.0",
+    "nodemon": "^2.0.4",
+    "rimraf": "^3.0.2",
+    "ts-node": "^9.0.0",
+    "typescript": "^4.0.2"
+  }
+}
