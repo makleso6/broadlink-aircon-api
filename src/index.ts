@@ -28,7 +28,8 @@ export declare const enum Fixation {
 export declare const enum Fanspeed {
   low = 3,
   medium = 2,
-  high = 1
+  high = 1,
+  auto = 5
 }
 
 export declare const enum Mode {
@@ -127,7 +128,7 @@ export class AirConditionerAPI {
       //   this.auth();
       // });
       this.socket.socket.on('message', (msg, rinfo) => {
-        //console.log('recive payload' + msg.length);
+        // console.log('recive msg', msg.length);
 
         const command = msg[0x26];
 
@@ -142,11 +143,15 @@ export class AirConditionerAPI {
           payload.copy(this.id, 0, 0x00, 0x04);
           // this.emit('deviceReady');
         } else if (command === 0xee) {
+
+          const packet_type = payload[4]; 
+          if (packet_type !== 0x07) {
+            return;
+          } 
+
           this.updateStatus(payload);
           this.updateInfo(payload);
-          ////console.log('payload' + payload);
-          ////console.log(payload);
-          // this.emit('payload', err, payload);
+
         }
       });
     }
@@ -160,17 +165,21 @@ export class AirConditionerAPI {
       // }
       this.model = device;
       let temperature = 0; //= 20 - 8
-      // let temperature_05 = 0;
+      let temperature_05 = 0;
 
       if (device.temp < 16) {
         temperature = 16 - 8;
-        // temperature_05 = 0;
       } else if (device.temp > 32) {
         temperature = 32 - 8;
-        // temperature_05 = 0;
       } else {
         temperature = device.temp - 8;
-        // temperature_05 = 0;
+
+        if (Number.isInteger(device.temp)) {
+          // console.log('integer');
+        } else {
+          // console.log('not integer');
+          temperature_05 = 1;	
+        }
       }
 
       const payload = Buffer.alloc(23, 0);
@@ -187,7 +196,7 @@ export class AirConditionerAPI {
       payload[10] = 0b00000000 | temperature << 3 | device.verticalFixation;
       //        payload[10] = 0b00000000 | 8 << 3 | 0
       payload[11] = 0b00000000 | device.horizontalFixation << 5;
-      payload[12] = 0b00001111 | 0 << 7;   //# bit 1:  0.5  #bit   if 0b?1 then nothing done....  last 6 is some sort of packet_id
+      payload[12] = 0b00001111 | temperature_05 << 7;  
       payload[13] = 0b00000000 | device.fanspeed << 5;//self.status['fanspeed'] << 5
       payload[14] = 0b00000000 | device.turbo << 6 | device.mute << 7; 
       payload[15] = 0b00000000 | device.mode << 5 | device.sleep << 2;
@@ -210,6 +219,7 @@ export class AirConditionerAPI {
       request_payload[length + 2] = ((crc >> 8) & 0xFF);
       request_payload[length + 3] = crc & 0xFF;
 
+      // console.log('send set request');
       this.send(request_payload, 0x6a);//sendPacket(0x6a, request_payload);
     }
 
@@ -230,6 +240,7 @@ export class AirConditionerAPI {
 
     private updateStatus(payload: Buffer) {
       if (payload.length === 32) {
+        // console.log('did update state');
         this.model.temp = 8 + (payload[12] >>3 );// + (0.5 * float(payload[14]>>7));
         ////console.log('this.model.temp ' + this.model.temp);
         this.model.power = payload[20] >> 5 & 0b00000001;
@@ -315,6 +326,9 @@ export class AirConditionerAPI {
     private async send(payload: Buffer, command: number) {
 
       let packet = Buffer.alloc(0x38, 0);
+      if (this.count === 65535) {
+        this.count = 1;
+      }
       this.count = (this.count + 1) & 0xffff;
 
       packet[0x00] = 0x5a;
@@ -450,17 +464,95 @@ export class AirConditionerAPI {
       this.updateModel(this.model);
     }
 
-  // setPower(power: State) {
+    setFanSpeed(speed: Fanspeed) {
+      if (this.model.fanspeed === speed) {
+        return;
+      }
+      this.model.fanspeed = speed;
+      this.updateModel(this.model);
+    }
 
-  // }
+    setMute(state: State) {
+      if (this.model.mute === state) {
+        return;
+      }
+      this.model.mute = state;
+      this.model.turbo = State.off;
+      this.updateModel(this.model);
+    }
 
-  // setPower(power: State) {
+    setTurbo(state: State) {
+      if (this.model.turbo === state) {
+        return;
+      }
+      this.model.mute = State.off;
+      this.model.turbo = state ;
+      this.updateModel(this.model);
+    }
 
-  // }
+    setSpeed(speed: Fanspeed, turbo: State, mute: State) {
+      if (turbo === State.on && mute === State.on) {
+        return;
+      }
+      if (this.model.fanspeed === speed && this.model.turbo === turbo && this.model.mute === mute) {
+        return;
+      }
+      this.model.fanspeed = speed;
+      this.model.turbo = turbo ;
+      this.model.mute = mute ;
 
-  // setPower(power: State) {
+      this.updateModel(this.model);
+    }
 
-  // }
+    setDisplay(state: State) {
+      if (this.model.display === state) {
+        return;
+      }
+      this.model.display = state;
+      this.updateModel(this.model);
+    }
+
+    setSwing(verticalFixation: Fixation, horizontalFixation: Fixation) {
+      if (this.model.verticalFixation === verticalFixation && this.model.horizontalFixation === horizontalFixation) {
+        return;
+      }
+      this.model.verticalFixation = verticalFixation;
+      this.model.horizontalFixation = horizontalFixation;
+
+      this.updateModel(this.model);
+    }
+
+    setHealth(state: State) {
+      if (this.model.health === state) {
+        return;
+      }
+      this.model.health = state;
+      this.updateModel(this.model);
+    }
+
+    setClean(state: State) {
+      if (this.model.clean === state) {
+        return;
+      }
+      this.model.clean = state;
+      this.updateModel(this.model);
+    }
+
+    setMildew(state: State) {
+      if (this.model.mildew === state) {
+        return;
+      }
+      this.model.mildew = state;
+      this.updateModel(this.model);
+    }
+
+    setSleep(state: State) {
+      if (this.model.sleep === state) {
+        return;
+      }
+      this.model.sleep = state;
+      this.updateModel(this.model);
+    }
 }
 
 
