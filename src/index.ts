@@ -253,7 +253,11 @@ export class AirConditionerAPI {
     private updateInfo(payload: Buffer) {
       if (payload.length === 48) {
         const amb_05 = payload[33] / 10;
-        const amb = payload[17] & 0b00011111;
+        let amb = payload[17] & 0b00011111;
+        if (payload[17] > 63) {
+          amb += 32;
+        }
+   
         this.model.ambientTemp = amb_05 + amb;
         this.feedback.emitUpdateState(this.model);
       }
