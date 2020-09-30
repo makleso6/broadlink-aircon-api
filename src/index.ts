@@ -1,10 +1,4 @@
-
-
-// let hap: HAP;
-import { RemoteInfo, SocketType, Socket } from 'dgram';
-
 import { DgramAsPromised } from 'dgram-as-promised';
-// import { AddressInfo } from 'net';
 import * as Crypto from 'crypto';
 import { EventEmitter } from 'events';
 
@@ -72,10 +66,6 @@ export class AirConditioner {
    }
 }
 
-export declare interface Feedback {
-  on(event: 'updateState', listener: (name: AirConditioner) => void): this;
-  // on(event: string, listener: Function): this;
-}
 
 class ApiFeedback extends EventEmitter {
   emitUpdateState(airCon: AirConditioner): void {
@@ -95,10 +85,7 @@ export class AirConditionerAPI {
     private readonly ip: string;
     model = new AirConditioner()
     feedback = new ApiFeedback()
-    // private readonly mac: string;
   
-    // private readonly switchService: Service;
-    // private readonly informationService: Service;
     private socket = DgramAsPromised.createSocket('udp4');
 
     constructor(ip: string, mac: string) {
@@ -117,31 +104,20 @@ export class AirConditionerAPI {
       await this.socket.bind();        
       this.socket.setBroadcast(true);
       this.auth();
-      // this.socket.setMulticastTTL(128);
-      // this.socket.socket.on('listening', () => {
-      //   ////console.log('try auth');
-        
-      // });
 
-      // this.socket.socket.on('connect', () => {
-      //   //console.log('connected');
-      //   this.auth();
-      // });
-      this.socket.socket.on('message', (msg, rinfo) => {
-        // console.log('recive msg', msg.length);
+      this.socket.socket.on('message', (msg) => {
 
         const command = msg[0x26];
 
         const payload = this.decrypt(msg);
         if (command === 0xe9) {
-          //console.log('hello success' + payload.length);
 
           this.defaultKey = Buffer.alloc(0x10, 0);
           payload.copy(this.defaultKey, 0, 0x04, 0x14);
 
           this.id = Buffer.alloc(0x04, 0);
           payload.copy(this.id, 0, 0x00, 0x04);
-          // this.emit('deviceReady');
+
         } else if (command === 0xee) {
 
           const packet_type = payload[4]; 
@@ -377,10 +353,8 @@ export class AirConditionerAPI {
       packet[0x20] = checksum & 0xff;
       packet[0x21] = checksum >> 8;
     
-      const result = await this.socket.send(packet, 0, packet.length, 80, this.ip);
+      await this.socket.send(packet, 0, packet.length, 80, this.ip);
       
-      // const decrypted = this.decrypt(result);
-    //   this.log.debug('Recive packet', result);
     }
 
     private decrypt(response: Buffer): Buffer {
@@ -554,6 +528,3 @@ export class AirConditionerAPI {
       this.updateModel(this.model);
     }
 }
-
-
-
