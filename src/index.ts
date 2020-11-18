@@ -111,7 +111,10 @@ export class AirConditionerAPI {
 
         const payload = this.decrypt(msg);
         if (command === 0xe9) {
-
+          console.log('loop-fix ', payload.length);
+          if (payload.length === 0) {
+            return;
+          } 
           this.defaultKey = Buffer.alloc(0x10, 0);
           payload.copy(this.defaultKey, 0, 0x04, 0x14);
 
